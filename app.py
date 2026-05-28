@@ -1,3 +1,16 @@
+import os
+import gdown
+
+POLICY_FILE_ID = "1E2A323P2awpY-Bcwq2EA_n8w4ecHJBkv"
+EMBED_FILE_ID = "1GKRPVQE4yMN3HO9FhYFHxImax6zlImbU"
+
+def download_from_drive(file_id, output):
+    if not os.path.exists(output):
+        url = f"https://drive.google.com/uc?id={file_id}"
+        gdown.download(url, output, quiet=False)
+
+download_from_drive(POLICY_FILE_ID, "policy_chunks.csv")
+download_from_drive(EMBED_FILE_ID, "chunk_embeddings.pkl")
 
 import os
 import pickle
