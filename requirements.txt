@@ -3,3 +3,5 @@ pandas
 numpy
 huggingface-hub
 gdown
+sentence-transformers
+torch
