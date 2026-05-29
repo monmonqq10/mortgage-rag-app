@@ -99,12 +99,15 @@ def generate_response(case_text):
     retrieved = retrieve_top_k(case_text, k=5)
     prompt = build_rag_prompt(case_text, retrieved)
 
-    response = llm_client.text_generation(
-        prompt,
-        max_new_tokens=600,
-        temperature=0.0,
-        do_sample=False
+    response = llm_client.chat_completion(
+        messages=[
+            {"role": "user", "content": prompt}
+        ],
+        max_tokens=600,
+        temperature=0.0
     )
+    
+    response = response.choices[0].message.content
 
     evidence_text = ""
     for i, r in enumerate(retrieved, 1):
