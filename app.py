@@ -6,8 +6,8 @@ import pandas as pd
 import numpy as np
 from huggingface_hub import InferenceClient
 
-POLICY_FILE_ID = "1PbVcl42w32sfVyE5eqhwR331OuDR1TDb"
-EMBED_FILE_ID = "1r1ohBm1dpurAw9dt0-elBaqfi_Dl12rd"
+POLICY_FILE_ID = "16XMoIRCdC9swJ4jLzXdsP3tsnmaOR0i6"
+EMBED_FILE_ID = "1TkqaOF2v2K4hb8rSSfIQWs9f4re7yurf"
 
 def download_from_drive(file_id, output):
     if not os.path.exists(output):
