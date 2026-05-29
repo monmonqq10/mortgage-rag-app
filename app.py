@@ -123,28 +123,42 @@ def retrieve_top_k(query_text, k=5, candidate_k=30):
     return reranked[:k]
 
 def build_rag_prompt(case_text, retrieved_chunks):
+
     evidence = "\n\n".join([
         f"[Policy Excerpt {i+1}]\n{chunk['text'][:900]}"
         for i, chunk in enumerate(retrieved_chunks[:5])
     ])
 
     return f"""
-Mortgage case and question:
+You are a mortgage policy explanation assistant.
+
+Mortgage Case and Question:
 {case_text}
 
-Retrieved policy evidence:
+Retrieved Policy Evidence:
 {evidence}
 
-Write one concise answer in 5 to 7 sentences.
+Task:
+Answer the user's question in 5 to 7 sentences.
 
-Rules:
-1. Answer the specific question directly.
-2. Use only the retrieved evidence and the case facts.
-3. Do not invent thresholds, approval reasons, risk levels, or compliance results.
-4. If the evidence only lists review factors, say that it identifies factors to consider but does not confirm compliance.
-5. If the evidence is insufficient, say that a definitive compliance determination cannot be confirmed from the retrieved evidence.
-6. Do not use headings, bullet points, numbering, or markdown in the answer.
-7. Do not repeat these rules.
+Instructions:
+- Answer the specific question directly.
+- Write in plain English.
+- Explain the meaning of the mortgage metrics in the case.
+- Explain why those metrics matter for repayment-capacity review.
+- Use the retrieved policy evidence as support.
+- Focus on helping a non-technical reader understand the result.
+- Summarize policy concepts in simple language.
+- Do not quote regulation text.
+- Do not mention CFR numbers, section numbers, appendix numbers, paragraph numbers, legal citations, or policy document references.
+- Do not copy policy wording directly.
+- Do not say "According to the policy" or "The regulation states".
+- Do not mention retrieved excerpts.
+- Do not use bullet points or headings.
+- Keep the explanation factual and grounded in the provided evidence.
+- If the evidence does not provide enough information for a definitive conclusion, clearly state that additional information would be needed.
+
+The audience is a mortgage applicant with no legal or regulatory background.
 """
 
 def generate_response(case_text):
