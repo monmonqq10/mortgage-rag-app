@@ -48,20 +48,32 @@ def get_query_embedding(query_text):
 
 def keyword_score(text, query):
     keywords = [
-        "ability-to-repay", "ability to repay", "1026.43",
-        "debt-to-income", "debt to income", "income", "assets",
-        "monthly payment", "credit history", "employment status",
-        "mortgage-related obligations", "mortgage related obligations",
-        "simultaneous loans", "qualified mortgage",
-        "loan-to-value", "combined loan-to-value",
-        "principal residence", "first lien", "subordinate lien",
-        "refinancing", "home purchase"
+        "1026.43",
+        "ability-to-repay",
+        "ability to repay",
+        "repayment ability",
+        "income",
+        "assets",
+        "employment",
+        "debt-to-income",
+        "monthly payment",
+        "simultaneous loans",
+        "mortgage-related obligations",
+        "credit history",
+        "qualified mortgage"
     ]
 
     penalty_keywords = [
-        "high-cost mortgage", "hoepa", "average prime offer rate",
-        "annual percentage rate", "percentage points",
-        "advertising", "disclosure", "escrow"
+        "hmda",
+        "regulation c",
+        "community reinvestment act",
+        "cra",
+        "reporting",
+        "disclosure",
+        "high-cost mortgage",
+        "hoepa",
+        "average prime offer rate",
+        "annual percentage rate"
     ]
 
     text_lower = str(text).lower()
