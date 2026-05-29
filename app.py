@@ -1,8 +1,8 @@
 import os
 import gdown
 
-POLICY_FILE_ID = "1E2A323P2awpY-Bcwq2EA_n8w4ecHJBkv"
-EMBED_FILE_ID = "1GKRPVQE4yMN3HO9FhYFHxImax6zlImbU"
+POLICY_FILE_ID = "1PbVcl42w32sfVyE5eqhwR331OuDR1TDb"
+EMBED_FILE_ID = "1r1ohBm1dpurAw9dt0-elBaqfi_Dl12rd"
 
 def download_from_drive(file_id, output):
     if not os.path.exists(output):
