@@ -18,6 +18,14 @@ download_from_drive(EMBED_FILE_ID, "chunk_embeddings.pkl")
 
 policy_chunks_df = pd.read_csv("policy_chunks.csv")
 
+print("Corpus shape:", policy_chunks_df.shape)
+
+print("First 20 sources:")
+print(policy_chunks_df["source"].drop_duplicates().head(20).tolist())
+
+print("Top source counts:")
+print(policy_chunks_df["source"].value_counts().head(20))
+
 with open("chunk_embeddings.pkl", "rb") as f:
     chunk_embeddings = pickle.load(f)
 
