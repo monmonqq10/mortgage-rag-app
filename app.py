@@ -160,6 +160,7 @@ Instructions:
 - Do not use second-person wording such as "you", "your", "you're", or "your application". Use neutral terms such as "the applicant", "the borrower", or "the loan application".
 - Do not define mortgage metrics as dictionary-style definitions. Instead, explain what the reported values imply in the context of this mortgage case. Focus on interpretation rather than definition.
 - Avoid generic educational explanations. Explain how the reported values relate to repayment-capacity review for this specific case.
+- Do not state that a value is acceptable, high, low, risky, safe, compliant, qualified, approved, or meets a threshold unless that conclusion is explicitly supported by the retrieved evidence.
 
 Write in a neutral academic style suitable for a mortgage analyst.
 """
@@ -190,9 +191,7 @@ def generate_response(case_text):
         evidence_text += (
             f"\n\nPolicy Excerpt {i}\n"
             f"Source: {r['source']}\n"
-            f"Final Score: {r['score']:.4f}\n"
-            f"Cosine Score: {r['cosine_score']:.4f}\n"
-            f"Keyword Score: {r['keyword_score']}\n"
+            f"Relevance Score: {r['score']:.4f}\n\n"
             f"{r['text'][:800]}"
         )
 
