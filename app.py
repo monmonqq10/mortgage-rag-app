@@ -5,14 +5,14 @@ import gradio as gr
 import pandas as pd
 import numpy as np
 from huggingface_hub import InferenceClient
+from sentence_transformers import CrossEncoder
 
 POLICY_FILE_ID = "16XMoIRCdC9swJ4jLzXdsP3tsnmaOR0i6"
 EMBED_FILE_ID = "1TkqaOF2v2K4hb8rSSfIQWs9f4re7yurf"
 
 def download_from_drive(file_id, output):
-    if not os.path.exists(output):
-        url = f"https://drive.google.com/uc?id={file_id}"
-        gdown.download(url, output, quiet=False)
+    url = f"https://drive.google.com/uc?id={file_id}"
+    gdown.download(url, output, quiet=False)
 
 download_from_drive(POLICY_FILE_ID, "policy_chunks.csv")
 download_from_drive(EMBED_FILE_ID, "chunk_embeddings.pkl")
@@ -36,6 +36,8 @@ embed_client = InferenceClient(
     token=HF_TOKEN
 )
 
+reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+
 def cosine_scores(query_vec, matrix):
     query_vec = np.array(query_vec, dtype=np.float32)
     query_vec = query_vec / (np.linalg.norm(query_vec) + 1e-10)
@@ -46,81 +48,32 @@ def get_query_embedding(query_text):
     result = embed_client.feature_extraction(query_text)
     return np.array(result, dtype=np.float32)
 
-def keyword_score(text, query):
-    keywords = [
-        "1026.43",
-        "ability-to-repay",
-        "ability to repay",
-        "repayment ability",
-        "income",
-        "assets",
-        "employment",
-        "debt-to-income",
-        "monthly payment",
-        "simultaneous loans",
-        "mortgage-related obligations",
-        "credit history",
-        "qualified mortgage"
-    ]
-
-    penalty_keywords = [
-        "hmda",
-        "regulation c",
-        "community reinvestment act",
-        "cra",
-        "reporting",
-        "disclosure",
-        "high-cost mortgage",
-        "hoepa",
-        "average prime offer rate",
-        "annual percentage rate"
-    ]
-
-    text_lower = str(text).lower()
-    query_lower = str(query).lower()
-
-    score = 0
-
-    for kw in keywords:
-        if kw in text_lower:
-            score += 1
-        if kw in query_lower and kw in text_lower:
-            score += 2
-
-    # Penalize unrelated Regulation Z sections for ATR questions
-    if "ability" in query_lower or "repayment" in query_lower or "debt-to-income" in query_lower:
-        for kw in penalty_keywords:
-            if kw in text_lower:
-                score -= 2
-
-    return score
-
 def retrieve_top_k(query_text, k=5, candidate_k=30):
     query_embedding = get_query_embedding(query_text)
     scores = cosine_scores(query_embedding, chunk_embeddings)
 
     candidate_indices = scores.argsort()[::-1][:candidate_k]
 
-    reranked = []
+    candidates = []
     for idx in candidate_indices:
-        text = policy_chunks_df.iloc[idx]["text"]
-        source = policy_chunks_df.iloc[idx]["source"]
-
-        cosine = float(scores[idx])
-        keyword = keyword_score(text, query_text)
-
-        final_score = (0.75 * cosine) + (0.25 * keyword)
-
-        reranked.append({
-            "source": source,
-            "text": text,
-            "score": final_score,
-            "cosine_score": cosine,
-            "keyword_score": keyword
+        candidates.append({
+            "source": policy_chunks_df.iloc[idx]["source"],
+            "text": policy_chunks_df.iloc[idx]["text"],
+            "cosine_score": float(scores[idx])
         })
 
-    reranked = sorted(reranked, key=lambda x: x["score"], reverse=True)
-    return reranked[:k]
+    pairs = [(query_text, c["text"]) for c in candidates]
+    rerank_scores = reranker.predict(pairs)
+
+    ranked_idx = np.argsort(rerank_scores)[::-1][:k]
+
+    results = []
+    for idx in ranked_idx:
+        item = candidates[idx].copy()
+        item["score"] = float(rerank_scores[idx])
+        results.append(item)
+
+    return results
 
 def build_rag_prompt(case_text, retrieved_chunks):
     evidence = "\n\n".join([
@@ -129,33 +82,22 @@ def build_rag_prompt(case_text, retrieved_chunks):
     ])
 
     return f"""
-You are answering a mortgage policy-grounded explanation question.
-
-Mortgage Case and Question:
+Mortgage case and question:
 {case_text}
 
-Retrieved Policy Evidence:
+Retrieved policy evidence:
 {evidence}
 
-Task:
 Write one concise answer in 5 to 7 sentences.
 
-Start by directly answering the specific question.
-Use only the retrieved policy evidence and the most relevant case facts.
-Explain how the retrieved evidence supports or limits the answer.
-If the retrieved evidence does not provide a clear rule, threshold, or compliance result, state that a definitive compliance determination cannot be confirmed from the provided policy evidence.
-
-Important:
-- Focus on the exact question asked.
-- Do not repeat all case details.
-- Do not give general mortgage background.
-- Copy numeric values exactly as shown in the Mortgage Case.
-- Do not invent thresholds, rules, risk levels, approval logic, or lender decision reasons.
-- Do not say the loan meets or violates a requirement unless the retrieved evidence clearly supports it.
-- If retrieved evidence is about HOEPA, high-cost mortgage thresholds, APR trigger thresholds, advertising, escrow, or disclosure rules, do not use it to answer an Ability-to-Repay repayment-capacity question unless the question specifically asks about those topics.
-- Ignore unrelated regulatory thresholds or background percentages.
-- Do not use headings, bullet points, numbering, labels, or markdown.
-- Do not start with "Answer:"
+Rules:
+1. Answer the specific question directly.
+2. Use only the retrieved evidence and the case facts.
+3. Do not invent thresholds, approval reasons, risk levels, or compliance results.
+4. If the evidence only lists review factors, say that it identifies factors to consider but does not confirm compliance.
+5. If the evidence is insufficient, say that a definitive compliance determination cannot be confirmed from the retrieved evidence.
+6. Do not use headings, bullet points, numbering, or markdown in the answer.
+7. Do not repeat these rules.
 """
 
 def generate_response(case_text):
@@ -164,7 +106,14 @@ def generate_response(case_text):
 
     response = llm_client.chat_completion(
         messages=[
-            {"role": "user", "content": prompt}
+            {
+                "role": "system",
+                "content": "You are a careful mortgage policy-grounded explanation assistant. Answer only the user question. Do not repeat the prompt or rules."
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
         ],
         max_tokens=500,
         temperature=0.0
@@ -177,9 +126,8 @@ def generate_response(case_text):
         evidence_text += (
             f"\n\nPolicy Excerpt {i}\n"
             f"Source: {r['source']}\n"
-            f"Final Score: {r['score']:.4f}\n"
+            f"Rerank Score: {r['score']:.4f}\n"
             f"Cosine Score: {r['cosine_score']:.4f}\n"
-            f"Keyword Score: {r['keyword_score']}\n"
             f"{r['text'][:800]}"
         )
 
