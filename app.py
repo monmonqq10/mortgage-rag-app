@@ -144,7 +144,7 @@ Answer the user's question in 5 to 7 sentences.
 Instructions:
 - Answer the specific question directly.
 - Write in plain English.
-- Explain the meaning of the mortgage metrics in the case.
+- Explain what the reported values suggest about repayment-capacity review in this specific mortgage case.
 - Explain why those metrics matter for repayment-capacity review.
 - Use the retrieved policy evidence as support.
 - Focus on helping a non-technical reader understand the result.
@@ -158,6 +158,8 @@ Instructions:
 - Keep the explanation factual and grounded in the provided evidence.
 - If the evidence does not provide enough information for a definitive conclusion, clearly state that additional information would be needed.
 - Do not use second-person wording such as "you", "your", "you're", or "your application". Use neutral terms such as "the applicant", "the borrower", or "the loan application".
+- Do not define mortgage metrics as dictionary-style definitions. Instead, explain what the reported values imply in the context of this mortgage case. Focus on interpretation rather than definition.
+- Avoid generic educational explanations. Explain how the reported values relate to repayment-capacity review for this specific case.
 
 Write in a neutral academic style suitable for a mortgage analyst.
 """
