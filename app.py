@@ -27,7 +27,7 @@ chunk_embeddings = np.array(chunk_embeddings, dtype=np.float32)
 HF_TOKEN = os.environ.get("HF_TOKEN")
 
 llm_client = InferenceClient(
-    model="mistralai/Mistral-Nemo-Instruct-2407",
+    model="meta-llama/Llama-3.1-8B-Instruct",
     token=HF_TOKEN
 )
 
