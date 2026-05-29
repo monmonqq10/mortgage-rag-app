@@ -46,19 +46,69 @@ def get_query_embedding(query_text):
     result = embed_client.feature_extraction(query_text)
     return np.array(result, dtype=np.float32)
 
-def retrieve_top_k(query_text, k=5):
+def keyword_score(text, query):
+    keywords = [
+        "ability-to-repay", "ability to repay", "1026.43",
+        "debt-to-income", "debt to income", "income", "assets",
+        "monthly payment", "credit history", "employment status",
+        "mortgage-related obligations", "mortgage related obligations",
+        "simultaneous loans", "qualified mortgage",
+        "loan-to-value", "combined loan-to-value",
+        "principal residence", "first lien", "subordinate lien",
+        "refinancing", "home purchase"
+    ]
+
+    penalty_keywords = [
+        "high-cost mortgage", "hoepa", "average prime offer rate",
+        "annual percentage rate", "percentage points",
+        "advertising", "disclosure", "escrow"
+    ]
+
+    text_lower = str(text).lower()
+    query_lower = str(query).lower()
+
+    score = 0
+
+    for kw in keywords:
+        if kw in text_lower:
+            score += 1
+        if kw in query_lower and kw in text_lower:
+            score += 2
+
+    # Penalize unrelated Regulation Z sections for ATR questions
+    if "ability" in query_lower or "repayment" in query_lower or "debt-to-income" in query_lower:
+        for kw in penalty_keywords:
+            if kw in text_lower:
+                score -= 2
+
+    return score
+
+def retrieve_top_k(query_text, k=5, candidate_k=30):
     query_embedding = get_query_embedding(query_text)
     scores = cosine_scores(query_embedding, chunk_embeddings)
-    top_indices = scores.argsort()[::-1][:k]
 
-    results = []
-    for idx in top_indices:
-        results.append({
-            "source": policy_chunks_df.iloc[idx]["source"],
-            "text": policy_chunks_df.iloc[idx]["text"],
-            "score": float(scores[idx])
+    candidate_indices = scores.argsort()[::-1][:candidate_k]
+
+    reranked = []
+    for idx in candidate_indices:
+        text = policy_chunks_df.iloc[idx]["text"]
+        source = policy_chunks_df.iloc[idx]["source"]
+
+        cosine = float(scores[idx])
+        keyword = keyword_score(text, query_text)
+
+        final_score = (0.75 * cosine) + (0.25 * keyword)
+
+        reranked.append({
+            "source": source,
+            "text": text,
+            "score": final_score,
+            "cosine_score": cosine,
+            "keyword_score": keyword
         })
-    return results
+
+    reranked = sorted(reranked, key=lambda x: x["score"], reverse=True)
+    return reranked[:k]
 
 def build_rag_prompt(case_text, retrieved_chunks):
     evidence = "\n\n".join([
@@ -90,28 +140,36 @@ Important:
 - Copy numeric values exactly as shown in the Mortgage Case.
 - Do not invent thresholds, rules, risk levels, approval logic, or lender decision reasons.
 - Do not say the loan meets or violates a requirement unless the retrieved evidence clearly supports it.
+- If retrieved evidence is about HOEPA, high-cost mortgage thresholds, APR trigger thresholds, advertising, escrow, or disclosure rules, do not use it to answer an Ability-to-Repay repayment-capacity question unless the question specifically asks about those topics.
 - Ignore unrelated regulatory thresholds or background percentages.
 - Do not use headings, bullet points, numbering, labels, or markdown.
 - Do not start with "Answer:"
 """
 
 def generate_response(case_text):
-    retrieved = retrieve_top_k(case_text, k=5)
+    retrieved = retrieve_top_k(case_text, k=5, candidate_k=30)
     prompt = build_rag_prompt(case_text, retrieved)
 
     response = llm_client.chat_completion(
         messages=[
             {"role": "user", "content": prompt}
         ],
-        max_tokens=600,
+        max_tokens=500,
         temperature=0.0
     )
-    
+
     response = response.choices[0].message.content
 
     evidence_text = ""
     for i, r in enumerate(retrieved, 1):
-        evidence_text += f"\n\nPolicy Excerpt {i}\nSource: {r['source']}\nScore: {r['score']:.4f}\n{r['text'][:800]}"
+        evidence_text += (
+            f"\n\nPolicy Excerpt {i}\n"
+            f"Source: {r['source']}\n"
+            f"Final Score: {r['score']:.4f}\n"
+            f"Cosine Score: {r['cosine_score']:.4f}\n"
+            f"Keyword Score: {r['keyword_score']}\n"
+            f"{r['text'][:800]}"
+        )
 
     return response.strip(), evidence_text
 
