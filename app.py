@@ -157,8 +157,9 @@ Instructions:
 - Do not use bullet points or headings.
 - Keep the explanation factual and grounded in the provided evidence.
 - If the evidence does not provide enough information for a definitive conclusion, clearly state that additional information would be needed.
+- Do not use second-person wording such as "you", "your", "you're", or "your application". Use neutral terms such as "the applicant", "the borrower", or "the loan application".
 
-The audience is a mortgage applicant with no legal or regulatory background.
+Write in a neutral academic style suitable for a mortgage analyst.
 """
 
 def generate_response(case_text):
