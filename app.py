@@ -174,7 +174,7 @@ def generate_response(case_text):
         "interest rate"
     ]
     
-    if not any(k in user_input.lower() for k in required_keywords):
+    if not any(k in case_text.lower() for k in required_keywords):
         return (
             "Please provide a complete mortgage case including financial details and a question.",
             ""
