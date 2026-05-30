@@ -161,11 +161,25 @@ Instructions:
 - Do not define mortgage metrics as dictionary-style definitions. Instead, explain what the reported values imply in the context of this mortgage case. Focus on interpretation rather than definition.
 - Avoid generic educational explanations. Explain how the reported values relate to repayment-capacity review for this specific case.
 - Do not state that a value is acceptable, high, low, risky, safe, compliant, qualified, approved, or meets a threshold unless that conclusion is explicitly supported by the retrieved evidence.
+- If the user does not provide a mortgage case or a specific question, do not generate an explanation. Instead ask for more information.
 
 Write in a neutral academic style suitable for a mortgage analyst.
 """
 
 def generate_response(case_text):
+    required_keywords = [
+        "loan amount",
+        "income",
+        "debt-to-income",
+        "interest rate"
+    ]
+    
+    if not any(k in user_input.lower() for k in required_keywords):
+        return (
+            "Please provide a complete mortgage case including financial details and a question.",
+            ""
+        )
+
     retrieved = retrieve_top_k(case_text, k=5, candidate_k=30)
     prompt = build_rag_prompt(case_text, retrieved)
 
